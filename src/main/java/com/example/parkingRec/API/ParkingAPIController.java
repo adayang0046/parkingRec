@@ -1,9 +1,9 @@
 package com.example.parkingRec.API;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.example.parkingRec.API.ParkingMeterODO;
+import com.example.parkingRec.ladot.LadotInventoryService;
+import com.example.parkingRec.ladot.ParkingMeter;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,38 +13,46 @@ import java.util.List;
 @RequestMapping("/api")
 public class ParkingAPIController {
 
+    private final LadotInventoryService inventoryService;
+
+    public ParkingAPIController(LadotInventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
+
     @GetMapping("/hello")
     public String hello() {
         return "Hello from Parking Recommender!";
     }
 
-    @GetMapping("/search")
-    public List<ParkingMeterODO> search(
-            @RequestParam double lat,
-            @RequestParam double lng,
-            @RequestParam int radiusMeters
-    ) {
-        List<ParkingMeterODO> results = new ArrayList<>();
+@GetMapping("/search")
+public List<ParkingMeterODO> search(
+        @RequestParam double lat,
+        @RequestParam double lng,
+        @RequestParam int radiusMeters
+) {
+    List<ParkingMeterODO> results = new ArrayList<>();
 
-        // Dummy meters near the requested location
-        results.add(new ParkingMeterODO(lat + 0.001, lng,         "Meter A", 2));
-        results.add(new ParkingMeterODO(lat,         lng + 0.001, "Meter B", 3));
-        results.add(new ParkingMeterODO(lat - 0.001, lng - 0.001, "Meter C", 1));
-
-        // Compute distance from search center and set it on each DTO
-        for (ParkingMeterODO meter : results) {
-            double distance = distanceInMeters(lat, lng, meter.getLat(), meter.getLng());
-            meter.setDistanceMeters(distance);
+    for (ParkingMeter meter : inventoryService.getAllMeters()) {
+        double distance = distanceInMeters(lat, lng, meter.getLat(), meter.getLng());
+        if (distance <= radiusMeters) {
+            ParkingMeterODO dto = new ParkingMeterODO(
+                    meter.getLat(),
+                    meter.getLng(),
+                    "Space " + meter.getSpaceId(),
+                    1
+            );
+            dto.setDistanceMeters(distance);
+            results.add(dto);
         }
-
-        // Sort by distance ascending
-        results.sort(Comparator.comparingDouble(ParkingMeterODO::getDistanceMeters));
-
-        return results;
     }
 
-    // Simple Haversine distance in meters
-    private static double distanceInMeters(double lat1, double lng1, double lat2, double lng2) {
+    results.sort(Comparator.comparingDouble(ParkingMeterODO::getDistanceMeters));
+    return results;
+}
+
+
+    private static double distanceInMeters(double lat1, double lng1,
+                                           double lat2, double lng2) {
         double R = 6371000.0; // Earth radius in meters
 
         double dLat = Math.toRadians(lat2 - lat1);
@@ -59,6 +67,3 @@ public class ParkingAPIController {
         return R * c;
     }
 }
-
-
-

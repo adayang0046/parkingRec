@@ -95,45 +95,61 @@
             statusEl.textContent = msg;
         }
 
-        async function searchAroundCenter() {
-            const center = map.getCenter();
-            const radius = parseInt(radiusInput.value, 10) || 500;
+ async function searchAroundCenter(isRetry = false) {
+    const center = map.getCenter();
+    let radius = parseInt(radiusInput.value, 10) || 500;
 
-            setStatus('Searching…');
+    setStatus(`Searching within ${radius} m…`);
 
-            const url = `/api/search?lat=${center.lat}&lng=${center.lng}&radiusMeters=${radius}`;
+    const url = `/api/search?lat=${center.lat}&lng=${center.lng}&radiusMeters=${radius}`;
 
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-
-                const meters = await response.json();
-
-                // Clear old markers
-                markersLayer.clearLayers();
-
-                if (!Array.isArray(meters) || meters.length === 0) {
-                    setStatus('No meters found (dummy data).');
-                    return;
-                }
-
-                meters.forEach(m => {
-                    const marker = L.marker([m.lat, m.lng]).addTo(markersLayer);
-                    marker.bindPopup(`
-                        <strong>${m.name}</strong><br/>
-                        Spaces: ${m.spaces}<br/>
-                        Lat: ${m.lat.toFixed(6)}, Lng: ${m.lng.toFixed(6)}
-                    `);
-                });
-
-                setStatus(`Loaded ${meters.length} meter(s).`);
-            } catch (err) {
-                console.error(err);
-                setStatus('Error fetching /api/search.');
-            }
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
         }
+
+        const meters = await response.json();
+
+        // If no results AND this was a small radius AND we haven't retried yet,
+        // bump radius to 500 and try one more time.
+        if ((!Array.isArray(meters) || meters.length === 0) &&
+            radius < 500 && !isRetry) {
+
+            radius = 500;
+            radiusInput.value = 500;
+            setStatus('No meters in that radius. Trying 500 m instead…');
+
+            // Retry once with 500 m
+            return searchAroundCenter(true);
+        }
+
+        // Clear old markers
+        markersLayer.clearLayers();
+
+        if (!Array.isArray(meters) || meters.length === 0) {
+            setStatus(`No meters found within ${radius} m.`);
+            return;
+        }
+
+        meters.forEach(m => {
+            const marker = L.marker([m.lat, m.lng]).addTo(markersLayer);
+            marker.bindPopup(`
+                <strong>${m.name}</strong><br/>
+                Spaces: ${m.spaces}<br/>
+                Distance: ${m.distanceMeters.toFixed(1)} m<br/>
+                Lat: ${m.lat.toFixed(6)}, Lng: ${m.lng.toFixed(6)}
+            `);
+        });
+
+        setStatus(`Loaded ${meters.length} meter(s) within ${radius} m.`);
+    } catch (err) {
+        console.error(err);
+        setStatus('Error fetching /api/search.');
+    }
+}
+
+    
 
         // Button triggers search
         searchButton.addEventListener('click', searchAroundCenter);
