@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Parking Recommender</title>
 
-    <!-- ✅ Leaflet CSS (no integrity / crossorigin) -->
+
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -71,7 +71,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Map setup
+    // Map
     const DEFAULT_LAT = 34.0522;
     const DEFAULT_LNG = -118.2437;
 
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // 2. Layers & DOM refs
+    // Layers
     const markersLayer = L.layerGroup().addTo(map);
 
     const statusEl = document.getElementById('status');
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl.textContent = msg;
     }
 
-    // 3. New: search center + radius circle state
+    // Search
     let searchCenterMarker = null;
     let searchRadiusCircle = null;
 
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 4. Your search function (with the retry logic you added)
+    // Search function (with the retry logic
     async function searchAroundCenter(isRetry = false) {
         const center = getSearchCenter();
         let radius = parseInt(radiusInput.value, 10) || 500;
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 5. 🔴 HERE is where the map.on('click', ...) goes
+    // map.on('click')
     map.on('click', (e) => {
         const radius = parseInt(radiusInput.value, 10) || 500;
 
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
             searchCenterMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
             searchCenterMarker.on('dragend', () => {
                 updateRadiusCircle();
-                // optional: auto-search on drag
+
                 // searchAroundCenter();
             });
         } else {
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // keep circle in sync when radius changes
     radiusInput.addEventListener('change', updateRadiusCircle);
 
-    // 6. Button + initial search
+    // Button + initial search
     searchButton.addEventListener('click', () => searchAroundCenter());
     searchAroundCenter();
 });
