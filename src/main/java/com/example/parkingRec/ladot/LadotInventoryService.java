@@ -44,6 +44,7 @@ public class LadotInventoryService {
                     rawCount++;
 
                     // headers we know from the earlier error:
+
                     // [spaceid, blockface, metertype, ratetype, raterange, timelimit, latlng]
                     String spaceId   = record.get("spaceid");
                     String blockface = record.get("blockface");
