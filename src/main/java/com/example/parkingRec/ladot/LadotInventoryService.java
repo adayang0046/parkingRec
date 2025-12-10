@@ -43,7 +43,6 @@ public class LadotInventoryService {
                 for (CSVRecord record : records) {
                     rawCount++;
 
-                    // headers we know from the earlier error:
 
                     // [spaceid, blockface, metertype, ratetype, raterange, timelimit, latlng]
                     String spaceId   = record.get("spaceid");
@@ -54,7 +53,7 @@ public class LadotInventoryService {
                     String timeLimit = record.get("timelimit");
                     String latLng    = record.get("latlng");
 
-                    // Log first few rows so we can see what latlng looks like
+                    // Log first few rows to see what latlng looks like
                     if (rawCount <= 5) {
                         System.out.println("Row " + rawCount +
                                 " spaceid=" + spaceId +
@@ -66,7 +65,7 @@ public class LadotInventoryService {
                         continue;
                     }
 
-                    // Remove parentheses if present, then split on comma
+                    
                     String cleaned = latLng.replace("(", "").replace(")", "");
                     String[] parts = cleaned.split(",");
                     if (parts.length != 2) {
