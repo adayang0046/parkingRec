@@ -53,35 +53,25 @@ public class LadotInventoryService {
                     String timeLimit = record.get("timelimit");
                     String latLng    = record.get("latlng");
 
-                    // Log first few rows to see what latlng looks like
-                    if (rawCount <= 5) {
-                        System.out.println("Row " + rawCount +
-                                " spaceid=" + spaceId +
-                                " latlng=" + latLng);
-                    }
-
-                    if (latLng == null || latLng.isBlank()) {
-                        // Skip rows with no coordinates
-                        continue;
-                    }
-
                     
+                // (existing logging, cleaning latLng, parsing lat/lng ...)
                     String cleaned = latLng.replace("(", "").replace(")", "");
                     String[] parts = cleaned.split(",");
                     if (parts.length != 2) {
-                        // Skip malformed latlng values
                         continue;
                     }
-
                     double lat;
                     double lng;
                     try {
                         lat = Double.parseDouble(parts[0].trim());
                         lng = Double.parseDouble(parts[1].trim());
                     } catch (NumberFormatException e) {
-                    // Skip rows with invalid numbers
                         continue;
                     }
+
+                // NEW: parse time limit & rate into numeric values
+                    int timeLimitMinutes = parseTimeLimitMinutes(timeLimit);
+                    double ratePerHour = parseRatePerHour(rateRange);
 
                     ParkingMeter meter = new ParkingMeter(
                             spaceId,
@@ -91,7 +81,9 @@ public class LadotInventoryService {
                             rateRange,
                             timeLimit,
                             lat,
-                            lng
+                            lng,
+                            timeLimitMinutes,
+                            ratePerHour
                     );
                     meters.add(meter);
                     parsedCount++;
@@ -110,4 +102,50 @@ public class LadotInventoryService {
     public List<ParkingMeter> getAllMeters() {
         return Collections.unmodifiableList(meters);
     }
+    private int parseTimeLimitMinutes(String timeLimit) {
+    if (timeLimit == null) return 0;
+    String s = timeLimit.toLowerCase();
+
+    // extract first integer in the string
+    int number = 0;
+    java.util.regex.Matcher m =
+            java.util.regex.Pattern.compile("(\\d+)").matcher(s);
+    if (m.find()) {
+        number = Integer.parseInt(m.group(1));
+    }
+
+    if (s.contains("min")) {
+        return number;
+    }
+    if (s.contains("hr") || s.contains("hour")) {
+        return number * 60;
+    }
+
+    // fallback: if no unit, assume hours if big, minutes if small
+    if (number >= 5) {
+        return number * 60;
+    }
+    return number;
+}
+
+private double parseRatePerHour(String rateRange) {
+    if (rateRange == null || rateRange.isBlank()) {
+        return 0.0; // unknown / any
+    }
+    String s = rateRange.toLowerCase();
+
+    // find the first number with optional decimal
+    java.util.regex.Matcher m =
+            java.util.regex.Pattern.compile("(\\d+(?:\\.\\d+)?)").matcher(s);
+
+    if (m.find()) {
+        try {
+            return Double.parseDouble(m.group(1));
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    return 0.0; // treat as unknown
+}
+
 }

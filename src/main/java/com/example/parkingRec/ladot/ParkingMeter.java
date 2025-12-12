@@ -1,6 +1,5 @@
 package com.example.parkingRec.ladot;
 
-
 public class ParkingMeter {
     private String spaceId;
     private String blockface;
@@ -11,6 +10,10 @@ public class ParkingMeter {
     private double lat;
     private double lng;
 
+    // parsed values:
+    private int timeLimitMinutes;
+    private double ratePerHour;
+
     public ParkingMeter(String spaceId,
                         String blockface,
                         String meterType,
@@ -18,7 +21,9 @@ public class ParkingMeter {
                         String rateRange,
                         String timeLimit,
                         double lat,
-                        double lng) {
+                        double lng,
+                        int timeLimitMinutes,
+                        double ratePerHour) {
         this.spaceId = spaceId;
         this.blockface = blockface;
         this.meterType = meterType;
@@ -27,6 +32,8 @@ public class ParkingMeter {
         this.timeLimit = timeLimit;
         this.lat = lat;
         this.lng = lng;
+        this.timeLimitMinutes = timeLimitMinutes;
+        this.ratePerHour = ratePerHour;
     }
 
     public String getSpaceId() { return spaceId; }
@@ -37,4 +44,6 @@ public class ParkingMeter {
     public String getTimeLimit() { return timeLimit; }
     public double getLat() { return lat; }
     public double getLng() { return lng; }
+    public int getTimeLimitMinutes() { return timeLimitMinutes; }
+    public double getRatePerHour() { return ratePerHour; }
 }
