@@ -4,59 +4,17 @@
     <meta charset="UTF-8">
     <title>Parking Recommender</title>
 
-
+    <!-- Leaflet CSS -->
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
 
-    <style>
-        body {
-            margin: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-
-        header {
-            padding: 0.75rem 1rem;
-            background: #222;
-            color: #f5f5f5;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        #controls {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        #controls input, #controls button {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        #map {
-            width: 100%;
-            height: calc(100vh - 56px); 
-            border-top: 1px solid #444;
-            box-sizing: border-box;
-        }
-
-        #status {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-          .center-marker-icon {
-            width: 16px;
-            height: 16px;
-            background-color: rgb(95, 154, 255);      
-            border-radius: 50%;      
-            border: 2px solid white;    
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
-        }
-    </style>
+    <!-- App CSS -->
+    <link
+        rel="stylesheet"
+        href="css/styles.css"
+    />
 </head>
 <body>
 <header>
@@ -64,339 +22,63 @@
         <strong>Parking Recommender</strong>
     </div>
     <div id="controls">
-    <label>
-        Lat
-        <input type="number" id="lat-input" step="0.000001" placeholder="34.0522">
-    </label>
+        <label>
+            Lat
+            <input type="number" id="lat-input" step="0.000001" placeholder="34.0522">
+        </label>
 
-    <label>
-        Lng
-        <input type="number" id="lng-input" step="0.000001" placeholder="-118.2437">
-    </label>
+        <label>
+            Lng
+            <input type="number" id="lng-input" step="0.000001" placeholder="-118.2437">
+        </label>
 
-    <button id="set-center-button">Set center</button>
+        <button id="set-center-button">Set center</button>
 
-    <label>
-        Radius (m)
-        <input type="number" id="radius-input" value="500" min="50" step="50">
-    </label>
+        <label>
+            Radius (m)
+            <input type="number" id="radius-input" value="500" min="50" step="50">
+        </label>
 
-    <label>
-        Sort by
-        <select id="sort-by">
-            <option value="distance">Closest</option>
-            <option value="time">Longest stay</option>
-            <option value="price">Cheapest</option>
-        </select>
-    </label>
+        <label>
+            Sort by
+            <select id="sort-by">
+                <option value="distance">Closest</option>
+                <option value="time">Longest stay</option>
+                <option value="price">Cheapest</option>
+            </select>
+        </label>
 
-    <label>
-        Min time
-        <select id="min-time">
-            <option value="0">Any</option>
-            <option value="30">30 min</option>
-            <option value="60">1 hour</option>
-            <option value="120">2 hours</option>
-        </select>
-    </label>
+        <label>
+            Min time
+            <select id="min-time">
+                <option value="0">Any</option>
+                <option value="30">30 min</option>
+                <option value="60">1 hour</option>
+                <option value="120">2 hours</option>
+            </select>
+        </label>
 
-    <label>
-        Max rate
-        <select id="max-rate">
-            <option value="0">Any</option>
-            <option value="2">≤ $2/hr</option>
-            <option value="3">≤ $3/hr</option>
-            <option value="4">≤ $4/hr</option>
-        </select>
-    </label>
+        <label>
+            Max rate
+            <select id="max-rate">
+                <option value="0">Any</option>
+                <option value="2">≤ $2/hr</option>
+                <option value="3">≤ $3/hr</option>
+                <option value="4">≤ $4/hr</option>
+            </select>
+        </label>
 
-    <button id="search-button">Search around center</button>
-    <span id="status"></span>
-</div>
-
-
+        <button id="search-button">Search around center</button>
+        <span id="status"></span>
+    </div>
 </header>
 
 <div id="map"></div>
 
+<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Map
-    const DEFAULT_LAT = 34.0522;
-    const DEFAULT_LNG = -118.2437;
-
-    const map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], 15);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    const markersLayer = L.layerGroup().addTo(map);
-
-    // custom icon for center
-    const centerIcon = L.divIcon({
-        className: 'center-marker-icon',
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
-    });
-
-
-
-    const statusEl = document.getElementById('status');
-    const radiusInput = document.getElementById('radius-input');
-    const searchButton = document.getElementById('search-button');
-    const destinationInput = document.getElementById('destination-input');
-    const destinationSearchButton = document.getElementById('destination-search-button');
-    const sortBySelect = document.getElementById('sort-by');
-    const minTimeSelect = document.getElementById('min-time');
-    const maxRateSelect = document.getElementById('max-rate');
-    const latInput = document.getElementById('lat-input');
-    const lngInput = document.getElementById('lng-input');
-    const setCenterButton = document.getElementById('set-center-button');
-
-
-    async function geocodeDestinationAndSearch() {
-    const query = destinationInput.value.trim();
-    if (!query) {
-        setStatus('Please enter a destination.');
-        return;
-    }
-
-    setStatus(`Finding "${query}"…`);
-
-    try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
-
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Geocoding HTTP ' + response.status);
-        }
-
-        const results = await response.json();
-        if (!Array.isArray(results) || results.length === 0) {
-            setStatus(`No results for "${query}".`);
-            return;
-        }
-
-        const best = results[0];
-        const lat = parseFloat(best.lat);
-        const lng = parseFloat(best.lon);
-
-        // Move map to destination
-        map.setView([lat, lng], 16);
-
-        // Set / move the search center marker
-        const destLatLng = L.latLng(lat, lng);
-        if (!searchCenterMarker) {
-            searchCenterMarker = L.marker(destLatLng, { draggable: true }).addTo(map);
-            searchCenterMarker.on('dragend', () => {
-                updateRadiusCircle();
-
-                // searchAroundCenter();
-            });
-        } else {
-            searchCenterMarker.setLatLng(destLatLng);
-        }
-
-        // Update circle & run parking search
-        updateRadiusCircle();
-        setStatus(`Centered on "${query}". Searching for parking…`);
-        await searchAroundCenter();
-    } catch (err) {
-        console.error(err);
-        setStatus('Error looking up destination.');
-    }
-}
-
-
-
-    function setStatus(msg) {
-        statusEl.textContent = msg;
-    }
-
-    // Search
-    let searchCenterMarker = null;
-    let searchRadiusCircle = null;
-
-    function getSearchCenter() {
-        if (searchCenterMarker) {
-            return searchCenterMarker.getLatLng();
-        }
-        return map.getCenter();
-    }
-
-    function updateRadiusCircle() {
-        const center = getSearchCenter();
-        const radius = parseInt(radiusInput.value, 10) || 500;
-        if (!center) return;
-
-        if (!searchRadiusCircle) {
-            searchRadiusCircle = L.circle(center, { radius }).addTo(map);
-        } else {
-            searchRadiusCircle.setLatLng(center);
-            searchRadiusCircle.setRadius(radius);
-        }
-    }
-
-    // Search function with the retry logic
-    async function searchAroundCenter(isRetry = false) {
-    const center = getSearchCenter();
-    let radius = parseInt(radiusInput.value, 10) || 500;
-
-    const sortBy = sortBySelect.value;           // distance | time | price
-    const minTimeMinutes = parseInt(minTimeSelect.value, 10) || 0;
-    const maxRatePerHour = parseFloat(maxRateSelect.value) || 0;
-
-    setStatus(`Searching within ${radius} m…`);
-
-    const params = new URLSearchParams({
-        lat: center.lat,
-        lng: center.lng,
-        radiusMeters: radius,
-        sortBy: sortBy,
-        minTimeMinutes: String(minTimeMinutes),
-        maxRatePerHour: String(maxRatePerHour)
-    });
-
-    const url = `/api/search?${params.toString()}`;
-
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error('HTTP ' + response.status);
-        }
-
-        const meters = await response.json();
-
-        
-        if ((!Array.isArray(meters) || meters.length === 0) &&
-            radius < 500 && !isRetry) {
-
-            radius = 500;
-            radiusInput.value = 500;
-            setStatus('No meters in that radius. Trying 500 m instead…');
-            updateRadiusCircle();
-            return searchAroundCenter(true);
-        }
-
-        markersLayer.clearLayers();
-
-        if (!Array.isArray(meters) || meters.length === 0) {
-            setStatus(`No meters found within ${radius} m.`);
-            return;
-        }
-
-        meters.forEach(m => {
-            const marker = L.marker([m.lat, m.lng]).addTo(markersLayer);
-            marker.bindPopup(`
-                <strong>${m.name}</strong><br/>
-                Distance: ${m.distanceMeters.toFixed(1)} m<br/>
-                Time limit: ${
-                    m.timeLimitMinutes > 0
-                        ? (m.timeLimitMinutes >= 60
-                            ? (m.timeLimitMinutes / 60) + ' hr'
-                            : m.timeLimitMinutes + ' min')
-                        : 'n/a'
-                }<br/>
-                Rate: ${
-                    m.ratePerHour > 0
-                        ? '$' + m.ratePerHour.toFixed(2) + '/hr'
-                        : 'n/a'
-                }<br/>
-                Lat: ${m.lat.toFixed(6)}, Lng: ${m.lng.toFixed(6)}
-            `);
-        });
-
-        setStatus(`Loaded ${meters.length} meter(s) within ${radius} m.`);
-    } catch (err) {
-        console.error(err);
-        setStatus('Error fetching /api/search.');
-    }
-}
-function setCenterFromInputs() {
-    const latVal = parseFloat(latInput.value);
-    const lngVal = parseFloat(lngInput.value);
-
-    if (Number.isNaN(latVal) || Number.isNaN(lngVal)) {
-        setStatus('Please enter a valid latitude and longitude.');
-        return;
-    }
-
-    // Basic sanity check: lat ∈ [-90, 90], lng ∈ [-180, 180]
-    if (latVal < -90 || latVal > 90 || lngVal < -180 || lngVal > 180) {
-        setStatus('Lat must be between -90 and 90, lng between -180 and 180.');
-        return;
-    }
-
-    const centerLatLng = L.latLng(latVal, lngVal);
-
-    // Move map
-    map.setView(centerLatLng, 16);
-
-    // Create or move center marker
-    if (!searchCenterMarker) {
-        searchCenterMarker = L.marker(centerLatLng, { draggable: true }).addTo(map);
-        searchCenterMarker.on('dragend', () => {
-            updateRadiusCircle();
-            // optional: auto-search on drag
-            // searchAroundCenter();
-        });
-    } else {
-        searchCenterMarker.setLatLng(centerLatLng);
-    }
-
-    // Update radius circle and run a search
-    updateRadiusCircle();
-    setStatus('Center set from coordinates. Searching for nearby meters…');
-    searchAroundCenter();
-}
-
-        setCenterButton.addEventListener('click', setCenterFromInputs);
-    latInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') setCenterFromInputs();
-    });
-    lngInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') setCenterFromInputs();
-    });
-
-  map.on('click', (e) => {
-    const radius = parseInt(radiusInput.value, 10) || 500;
-
-    if (!searchCenterMarker) {
-        searchCenterMarker = L.marker(e.latlng, {
-            icon: centerIcon,
-            draggable: true
-        }).addTo(map);
-
-        searchCenterMarker.on('dragend', () => {
-            updateRadiusCircle();
-
-        });
-    } else {
-        searchCenterMarker.setLatLng(e.latlng);
-    }
-
-    updateRadiusCircle();
-    searchAroundCenter();
-});
-
-    // keep circle in sync when radius changes
-    radiusInput.addEventListener('change', updateRadiusCircle);
-
-    // Button + initial search
-    searchButton.addEventListener('click', () => searchAroundCenter());
-    searchAroundCenter();
-});
-</script>
-
-
+<!-- App JS -->
+<script src="js/app.js"></script>
 </body>
 </html>
