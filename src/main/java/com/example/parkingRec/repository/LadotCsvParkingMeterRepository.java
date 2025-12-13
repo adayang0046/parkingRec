@@ -1,10 +1,11 @@
 package com.example.parkingRec.repository;
 
 import com.example.parkingRec.adapter.ParkingMeterRowAdapter;
-import com.example.parkingRec.adapter.LadotCsvRowAdapter;
 import com.example.parkingRec.ladot.ParkingMeter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -19,49 +20,56 @@ import java.util.List;
 @Service
 public class LadotCsvParkingMeterRepository implements ParkingMeterRepository {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(LadotCsvParkingMeterRepository.class);
+
+    private static final String LADOT_CSV_PATH = "data/ladot_meters.csv";
+
     private final List<ParkingMeter> meters = new ArrayList<>();
-    private final ParkingMeterRowAdapter rowAdapter = new LadotCsvRowAdapter();
+    private final ParkingMeterRowAdapter rowAdapter;
+
+    public LadotCsvParkingMeterRepository(ParkingMeterRowAdapter rowAdapter) {
+        this.rowAdapter = rowAdapter;
+    }
 
     @PostConstruct
     public void load() {
-        try {
-            ClassPathResource resource = new ClassPathResource("data/ladot_meters.csv");
-            if (!resource.exists()) {
-                throw new IllegalStateException("ladot_meters.csv not found on classpath");
-            }
+        ClassPathResource resource = new ClassPathResource(LADOT_CSV_PATH);
 
-            try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
-                CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
-                        .setHeader()
-                        .setSkipHeaderRecord(true)
-                        .setTrim(true)
-                        .build();
-
-                Iterable<CSVRecord> records = csvFormat.parse(reader);
-
-                int rawCount = 0;
-                int parsedCount = 0;
-
-                for (CSVRecord record : records) {
-                    rawCount++;
-                    try {
-                        ParkingMeter meter = rowAdapter.toParkingMeter(record);
-                        if (meter != null) {
-                            meters.add(meter);
-                            parsedCount++;
-                        }
-                    } catch (Exception e) {
-                        // skip bad row, optionally log
-                    }
-                }
-
-                System.out.println("Raw LADOT rows: " + rawCount + ", parsed meters: " + parsedCount);
-            }
-
-            System.out.println("Loaded LADOT meters: " + meters.size());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load LADOT inventory CSV", e);
+        if (!resource.exists()) {
+            throw new IllegalStateException("LADOT CSV not found on classpath at: " + LADOT_CSV_PATH);
         }
+
+        int rawCount = 0;
+        int parsedCount = 0;
+
+        try (Reader reader = new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)) {
+            CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                    .setHeader()
+                    .setSkipHeaderRecord(true)
+                    .setTrim(true)
+                    .build();
+
+            Iterable<CSVRecord> records = csvFormat.parse(reader);
+
+            for (CSVRecord record : records) {
+                rawCount++;
+                try {
+                    ParkingMeter meter = rowAdapter.toParkingMeter(record);
+                    if (meter != null) {
+                        meters.add(meter);
+                        parsedCount++;
+                    }
+                } catch (Exception rowEx) {
+                    // Log at debug 
+                    log.debug("Skipping invalid LADOT row {}: {}", rawCount, rowEx.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load LADOT inventory from " + LADOT_CSV_PATH, e);
+        }
+
+        log.info("Loaded LADOT meters: {} (raw rows: {})", parsedCount, rawCount);
     }
 
     @Override

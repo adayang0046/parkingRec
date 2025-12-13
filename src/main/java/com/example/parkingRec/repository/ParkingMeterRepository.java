@@ -8,6 +8,5 @@ public interface ParkingMeterRepository {
 
     List<ParkingMeter> findAll();
 
-    // Later you could add:
     // List<ParkingMeter> findWithinRadius(double lat, double lng, double radiusMeters);
 }

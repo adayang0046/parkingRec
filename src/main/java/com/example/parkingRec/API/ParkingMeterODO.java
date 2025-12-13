@@ -11,7 +11,7 @@ public class ParkingMeterODO {
     private double ratePerHour;
 
     private ParkingMeterODO() {
-        // use builder
+        // builder
     }
 
     public double getLat() { return lat; }
@@ -22,7 +22,10 @@ public class ParkingMeterODO {
     public int getTimeLimitMinutes() { return timeLimitMinutes; }
     public double getRatePerHour() { return ratePerHour; }
 
-    // Builder
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public static class Builder {
         private final ParkingMeterODO dto = new ParkingMeterODO();
 

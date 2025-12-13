@@ -2,25 +2,29 @@ package com.example.parkingRec.adapter;
 
 import com.example.parkingRec.ladot.ParkingMeter;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.stereotype.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Component
 public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
 
-    private static final Pattern NUMBER_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)");
+    private static final Pattern INTEGER_PATTERN = Pattern.compile("(\\d+)");
+    private static final Pattern DECIMAL_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)");
+
+    // LADOT CSV column names as constants 
+    private static final String COL_SPACE_ID = "spaceid";
+    private static final String COL_BLOCKFACE = "blockface";
+    private static final String COL_METER_TYPE = "metertype";
+    private static final String COL_RATE_TYPE = "ratetype";
+    private static final String COL_RATE_RANGE = "raterange";
+    private static final String COL_TIME_LIMIT = "timelimit";
+    private static final String COL_LAT_LNG = "latlng";
 
     @Override
     public ParkingMeter toParkingMeter(CSVRecord record) {
-        // Match your actual column names from the CSV
-        String spaceId   = record.get("spaceid");
-        String blockface = record.get("blockface");
-        String meterType = record.get("metertype");
-        String rateType  = record.get("ratetype");
-        String rateRange = record.get("raterange");
-        String timeLimit = record.get("timelimit");
-        String latLng    = record.get("latlng");
-
+        String latLng = record.get(COL_LAT_LNG);
         if (latLng == null || latLng.isBlank()) {
             return null;
         }
@@ -40,6 +44,13 @@ public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
             return null;
         }
 
+        String spaceId   = record.get(COL_SPACE_ID);
+        String blockface = record.get(COL_BLOCKFACE);
+        String meterType = record.get(COL_METER_TYPE);
+        String rateType  = record.get(COL_RATE_TYPE);
+        String rateRange = record.get(COL_RATE_RANGE);
+        String timeLimit = record.get(COL_TIME_LIMIT);
+
         int timeLimitMinutes = parseTimeLimitMinutes(timeLimit);
         double ratePerHour   = parseRatePerHour(rateRange);
 
@@ -58,14 +69,12 @@ public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
     }
 
     private int parseTimeLimitMinutes(String timeLimit) {
-        if (timeLimit == null) return 0;
-        String s = timeLimit.toLowerCase();
-
-        int number = 0;
-        Matcher m = Pattern.compile("(\\d+)").matcher(s);
-        if (m.find()) {
-            number = Integer.parseInt(m.group(1));
+        if (timeLimit == null) {
+            return 0;
         }
+
+        String s = timeLimit.toLowerCase();
+        int number = extractInteger(s);
 
         if (s.contains("min")) {
             return number;
@@ -74,7 +83,7 @@ public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
             return number * 60;
         }
 
-        // fallback: if no unit, guess hours if big
+        // if number is big, assume hours
         if (number >= 5) {
             return number * 60;
         }
@@ -85,15 +94,27 @@ public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
         if (rateRange == null || rateRange.isBlank()) {
             return 0.0;
         }
-
         String s = rateRange.toLowerCase();
-        Matcher m = NUMBER_PATTERN.matcher(s);
+        Double value = extractDecimal(s);
+        return value != null ? value : 0.0;
+    }
+
+    private int extractInteger(String s) {
+        Matcher m = INTEGER_PATTERN.matcher(s);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        return 0;
+    }
+
+    private Double extractDecimal(String s) {
+        Matcher m = DECIMAL_PATTERN.matcher(s);
         if (m.find()) {
             try {
                 return Double.parseDouble(m.group(1));
             } catch (NumberFormatException ignored) {
             }
         }
-        return 0.0;
+        return null;
     }
 }

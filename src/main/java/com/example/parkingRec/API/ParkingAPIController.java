@@ -37,19 +37,11 @@ public class ParkingAPIController {
             @RequestParam(defaultValue = "0") double maxRatePerHour,
             @RequestParam(defaultValue = "") String meterType
     ) {
+        int safeRadius = Math.max(radiusMeters, 0);
+        int safeMinTime = Math.max(minTimeMinutes, 0);
+        double safeMaxRate = Math.max(maxRatePerHour, 0.0);
 
-        // --- Build composite specification ---
-        MeterSpecification spec = new RadiusSpecification(radiusMeters);
-
-        if (minTimeMinutes > 0) {
-            spec = new AndSpecification(spec, new MinTimeSpecification(minTimeMinutes));
-        }
-        if (maxRatePerHour > 0) {
-            spec = new AndSpecification(spec, new MaxRateSpecification(maxRatePerHour));
-        }
-        if (meterType != null && !meterType.isBlank()) {
-            spec = new AndSpecification(spec, new MeterTypeSpecification(meterType));
-        }
+        MeterSpecification spec = buildSpecification(safeRadius, safeMinTime, safeMaxRate, meterType);
 
         List<ParkingMeterODO> results = new ArrayList<>();
 
@@ -64,8 +56,8 @@ public class ParkingAPIController {
             ParkingMeterODO dto = new ParkingMeterODO.Builder()
                     .lat(meter.getLat())
                     .lng(meter.getLng())
-                    .name("Space " + meter.getSpaceId())
-                    .spaces(1)  // unknown, keep 1 for now
+                    .name(buildName(meter))
+                    .spaces(1)  // can use real data if avaliable
                     .distanceMeters(distance)
                     .timeLimitMinutes(meter.getTimeLimitMinutes())
                     .ratePerHour(meter.getRatePerHour())
@@ -74,10 +66,32 @@ public class ParkingAPIController {
             results.add(dto);
         }
 
-        // --- Sort using strategy ---
         ParkingSortStrategy sortStrategy = sortStrategyFactory.get(sortBy);
         sortStrategy.sort(results);
 
         return results;
+    }
+
+    private MeterSpecification buildSpecification(int radiusMeters,
+                                                  int minTimeMinutes,
+                                                  double maxRatePerHour,
+                                                  String meterType) {
+        MeterSpecification spec = new RadiusSpecification(radiusMeters);
+
+        if (minTimeMinutes > 0) {
+            spec = new AndSpecification(spec, new MinTimeSpecification(minTimeMinutes));
+        }
+        if (maxRatePerHour > 0) {
+            spec = new AndSpecification(spec, new MaxRateSpecification(maxRatePerHour));
+        }
+        if (meterType != null && !meterType.isBlank()) {
+            spec = new AndSpecification(spec, new MeterTypeSpecification(meterType));
+        }
+
+        return spec;
+    }
+
+    private String buildName(ParkingMeter meter) {
+        return "Space " + meter.getSpaceId();
     }
 }
