@@ -12,7 +12,7 @@ public class LadotCsvRowAdapter implements ParkingMeterRowAdapter {
 
     @Override
     public ParkingMeter toParkingMeter(CSVRecord record) {
-        // Match your actual column names from the CSV
+        // Match actual column names from the CSV
         String spaceId   = record.get("spaceid");
         String blockface = record.get("blockface");
         String meterType = record.get("metertype");
