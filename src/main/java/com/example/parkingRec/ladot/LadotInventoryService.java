@@ -69,7 +69,7 @@ public class LadotInventoryService {
                         continue;
                     }
 
-                // NEW: parse time limit & rate into numeric values
+                // parse time limit & rate into numeric values
                     int timeLimitMinutes = parseTimeLimitMinutes(timeLimit);
                     double ratePerHour = parseRatePerHour(rateRange);
 
@@ -121,7 +121,7 @@ public class LadotInventoryService {
         return number * 60;
     }
 
-    // fallback: if no unit, assume hours if big, minutes if small
+    // if no unit, assume hours if big, minutes if small
     if (number >= 5) {
         return number * 60;
     }
