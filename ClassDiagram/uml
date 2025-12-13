@@ -1,0 +1,193 @@
+@startuml
+skinparam packageStyle rectangle
+skinparam defaultTextAlignment left
+
+'======================
+' Packages
+'======================
+package "api" {
+  class ParkingAPIController <<Controller>> {
+    +search(lat: double, lng: double, radiusMeters: int,
+            sortBy: String, minTimeMinutes: int,
+            maxRatePerHour: double, meterType: String)
+  }
+
+  class ParkingMeterODO {
+    -lat: double
+    -lng: double
+    -name: String
+    -spaces: int
+    -distanceMeters: double
+    -timeLimitMinutes: int
+    -ratePerHour: double
+    +getLat(): double
+    +getLng(): double
+    +getName(): String
+    +getSpaces(): int
+    +getDistanceMeters(): double
+    +getTimeLimitMinutes(): int
+    +getRatePerHour(): double
+    +builder(): Builder
+  }
+
+  class "ParkingMeterODO::Builder" as ParkingMeterODOBuilder <<Builder>> {
+    +lat(lat: double): Builder
+    +lng(lng: double): Builder
+    +name(name: String): Builder
+    +spaces(spaces: int): Builder
+    +distanceMeters(distance: double): Builder
+    +timeLimitMinutes(minutes: int): Builder
+    +ratePerHour(rate: double): Builder
+    +build(): ParkingMeterODO
+  }
+}
+
+package "ladot (domain)" {
+  class ParkingMeter {
+    -spaceId: String
+    -blockface: String
+    -meterType: String
+    -rateType: String
+    -rateRange: String
+    -timeLimit: String
+    -lat: double
+    -lng: double
+    -timeLimitMinutes: int
+    -ratePerHour: double
+    +getSpaceId(): String
+    +getBlockface(): String
+    +getMeterType(): String
+    +getRateType(): String
+    +getRateRange(): String
+    +getTimeLimit(): String
+    +getLat(): double
+    +getLng(): double
+    +getTimeLimitMinutes(): int
+    +getRatePerHour(): double
+  }
+}
+
+package "repository" {
+  interface ParkingMeterRepository <<Repository>> {
+    +findAll(): List<ParkingMeter>
+  }
+
+  class LadotCsvParkingMeterRepository <<Repository>> {
+    -meters: List<ParkingMeter>
+    -rowAdapter: ParkingMeterRowAdapter
+    +load()
+    +findAll(): List<ParkingMeter>
+  }
+}
+
+package "adapter" {
+  interface ParkingMeterRowAdapter <<Adapter>> {
+    +toParkingMeter(record: CSVRecord): ParkingMeter
+  }
+
+  class LadotCsvRowAdapter <<Adapter>> {
+    +toParkingMeter(record: CSVRecord): ParkingMeter
+  }
+}
+
+package "spec (filters)" {
+  interface MeterSpecification <<Specification>> {
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+
+  class RadiusSpecification <<Specification>> {
+    -radiusMeters: double
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+
+  class MinTimeSpecification <<Specification>> {
+    -minMinutes: int
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+
+  class MaxRateSpecification <<Specification>> {
+    -maxRatePerHour: double
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+
+  class MeterTypeSpecification <<Specification>> {
+    -typeFilter: String
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+
+  class AndSpecification <<Specification>> {
+    -left: MeterSpecification
+    -right: MeterSpecification
+    +isSatisfiedBy(m: ParkingMeter, userLat: double, userLng: double): boolean
+  }
+}
+
+package "sort (strategies)" {
+  interface ParkingSortStrategy <<Strategy>> {
+    +sort(results: List<ParkingMeterODO>)
+  }
+
+  class DistanceSortStrategy <<Strategy>> {
+    +sort(results: List<ParkingMeterODO>)
+  }
+
+  class TimeSortStrategy <<Strategy>> {
+    +sort(results: List<ParkingMeterODO>)
+  }
+
+  class PriceSortStrategy <<Strategy>> {
+    +sort(results: List<ParkingMeterODO>)
+  }
+
+  class ParkingSortStrategyFactory {
+    -strategies: Map<String, ParkingSortStrategy>
+    +get(sortBy: String): ParkingSortStrategy
+  }
+}
+
+package "util" {
+  class DistanceUtils <<Utility>> {
+    +distanceInMeters(lat1: double, lng1: double,
+                      lat2: double, lng2: double): double
+  }
+}
+
+'======================
+' Relationships
+'======================
+
+' Controller uses repository & sort factory
+ParkingAPIController --> ParkingMeterRepository : uses
+ParkingAPIController --> ParkingSortStrategyFactory : uses
+ParkingAPIController ..> MeterSpecification : builds/combines
+ParkingAPIController ..> ParkingMeterODO : builds via Builder
+ParkingAPIController ..> DistanceUtils : uses
+
+' Repository & adapter
+ParkingMeterRepository <|.. LadotCsvParkingMeterRepository
+LadotCsvParkingMeterRepository --> ParkingMeterRowAdapter : uses
+ParkingMeterRowAdapter <|.. LadotCsvRowAdapter
+
+' Domain usage
+LadotCsvParkingMeterRepository --> ParkingMeter : stores
+MeterSpecification --> ParkingMeter : filters on
+ParkingAPIController --> ParkingMeter : reads from repo
+
+' Specifications
+MeterSpecification <|.. RadiusSpecification
+MeterSpecification <|.. MinTimeSpecification
+MeterSpecification <|.. MaxRateSpecification
+MeterSpecification <|.. MeterTypeSpecification
+MeterSpecification <|.. AndSpecification
+AndSpecification --> MeterSpecification : left/right
+
+' Strategies
+ParkingSortStrategy <|.. DistanceSortStrategy
+ParkingSortStrategy <|.. TimeSortStrategy
+ParkingSortStrategy <|.. PriceSortStrategy
+ParkingSortStrategyFactory --> ParkingSortStrategy : returns
+
+' Builder inner class
+ParkingMeterODO "1" *-- "1" ParkingMeterODOBuilder
+
+@enduml
